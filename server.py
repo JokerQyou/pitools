@@ -13,7 +13,7 @@ class SensorAccess(tornado.web.RequestHandler):
         self.finish()
 
     def read_sensor(self):
-        pass
+        raise NotImplementedError('Should be implemented in subclass')
 
 
 class TempSensorAccess(SensorAccess):
