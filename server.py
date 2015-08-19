@@ -4,11 +4,14 @@ import json
 import tempfile
 import time
 from fractions import Fraction
+import shutil
 
 import tornado.ioloop
 import tornado.web
 import Adafruit_BMP.BMP085 as BMP085
 import picamera
+
+from config import PHOTO_STORE
 
 
 class SensorAccess(tornado.web.RequestHandler):
@@ -46,6 +49,12 @@ class CameraHandler(tornado.web.RequestHandler):
         annotate_text = time.strftime(
             '%Y/%m/%d %H:%M:%S offset +{:d}s\n{:.2f}deg / {:.3f}KPa'
         )
+        wait_offset = 1
+        photo_dir = os.path.join(
+            PHOTO_STORE,
+            time.strftime('%Y%m%d')
+        )
+        not os.path.isdir(photo_dir) and os.makedirs(photo_dir, mode=777)
         with picamera.PiCamera() as camera:
             sensor = BMP085.BMP085(mode=BMP085.BMP085_ULTRAHIGHRES)
 
@@ -56,8 +65,11 @@ class CameraHandler(tornado.web.RequestHandler):
             fd, photo_path = tempfile.mkstemp(suffix='.jpg', prefix='pi')
             print fd, photo_path
             os.close(fd)
+            photo_path = os.path.join(
+                '/dev/shm',
+                os.path.basename(photo_path)
+            )
             # wait a moment for iso and white balance
-            wait_offset = 1
             time.sleep(wait_offset)
             # and my camera is up side down, so rotate 180 deg
             camera.rotation = 180
@@ -68,6 +80,11 @@ class CameraHandler(tornado.web.RequestHandler):
             )
             camera.annotate_text = annotate_text
             camera.capture(photo_path, resize=resolution)
+            dst_photo_path = os.path.join(
+                photo_dir,
+                '{}.jpg'.format(str(int(time.time())))
+            )
+            shutil.move(photo_path, dst_photo_path)
 
 
 def start_server():
