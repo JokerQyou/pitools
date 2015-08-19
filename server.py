@@ -29,8 +29,9 @@ class IndexHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
         self.write(json.dumps({
-            'inde': 'pitools service'
+            'index': 'pitools service'
         }))
+        self.finish()
 
 
 def start_server():
