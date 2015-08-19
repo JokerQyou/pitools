@@ -11,7 +11,7 @@ import tornado.web
 import Adafruit_BMP.BMP085 as BMP085
 import picamera
 
-from config import PHOTO_STORE
+from config import PHOTO_STORE, PHOTO_RESOLUTION
 
 
 class SensorAccess(tornado.web.RequestHandler):
@@ -45,16 +45,31 @@ class IndexHandler(tornado.web.RequestHandler):
 class CameraHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
-        resolution = (800, 450, )
-        annotate_text = time.strftime(
-            '%Y/%m/%d %H:%M:%S offset +{:d}s\n{:.2f}deg / {:.3f}KPa'
-        )
-        wait_offset = 1
+        self.write(self.__take_photo(self.__generate_path()))
+        self.finish()
+
+    def __generate_path(self, daily=False):
         photo_dir = os.path.join(
             PHOTO_STORE,
             time.strftime('%Y%m%d')
         )
+        if not daily:
+            photo_dir = os.path.join(
+                photo_dir,
+                'random'
+            )
         not os.path.isdir(photo_dir) and os.makedirs(photo_dir, mode=777)
+        dst_photo_path = os.path.join(
+            photo_dir,
+            '{}.jpg'.format(str(int(time.time())))
+        )
+        return dst_photo_path
+
+    def __take_photo(self, path):
+        annotate_text = time.strftime(
+            '%Y/%m/%d %H:%M:%S offset +{:d}s\n{:.2f}deg / {:.3f}KPa'
+        )
+        wait_offset = 1
         with picamera.PiCamera() as camera:
             sensor = BMP085.BMP085(mode=BMP085.BMP085_ULTRAHIGHRES)
 
@@ -62,9 +77,7 @@ class CameraHandler(tornado.web.RequestHandler):
             camera.framerate = Fraction(15, 1)
             camera.awb_mode = 'fluorescent'
             camera.iso = 600
-            fd, photo_path = tempfile.mkstemp(suffix='.jpg', prefix='pi')
-            print fd, photo_path
-            os.close(fd)
+            photo_path = tempfile.mktemp(suffix='.jpg', prefix='pi')
             photo_path = os.path.join(
                 '/dev/shm',
                 os.path.basename(photo_path)
@@ -79,18 +92,26 @@ class CameraHandler(tornado.web.RequestHandler):
                 sensor.read_pressure() / 1000.0
             )
             camera.annotate_text = annotate_text
-            camera.capture(photo_path, resize=resolution)
-            dst_photo_path = os.path.join(
-                photo_dir,
-                '{}.jpg'.format(str(int(time.time())))
-            )
-            shutil.move(photo_path, dst_photo_path)
+            camera.capture(photo_path, resize=PHOTO_RESOLUTION)
+        shutil.move(photo_path, path)
+        return path
+
+
+class DailyPhotoHandler(CameraHandler):
+    @tornado.web.asynchronous
+    def get(self):
+        self.write(
+            self.__take_photo(self.__generate_path(daily=True))
+        )
+        self.finish()
 
 
 def start_server():
     application = tornado.web.Application([
         (r"/", IndexHandler),
         (r"/sensors/env", TempSensorAccess),
+        (r'/photo/shot', CameraHandler),
+        (r'/photo/daily', DailyPhotoHandler),
     ])
     application.listen(9876)
     tornado.ioloop.IOLoop.instance().start()
