@@ -13,6 +13,57 @@ import picamera
 
 from config import PHOTO_STORE, PHOTO_RESOLUTION
 
+LAST_DAILY_SHOT = 0
+TODAY = '0'
+
+
+def get_last_daily_shot_id():
+    photo_dir = get_daily_shot_dir()
+    p_id = -1
+    for item in os.listdir(photo_dir):
+        _p_id = int(os.path.splitext(item)[0])
+        if _p_id > p_id:
+            p_id = _p_id
+    return p_id
+
+
+def get_daily_shot_dir():
+    global TODAY
+    dirname = time.strftime('%Y%m%d')
+    if dirname != TODAY:
+        generate_daily_video(
+            os.path.join(PHOTO_STORE, TODAY)
+        )
+        TODAY = dirname
+    photo_dir = os.path.join(
+        PHOTO_STORE,
+        dirname
+    )
+    not os.path.isdir(photo_dir) and os.makedirs(photo_dir, mode=0777)
+    return photo_dir
+
+
+def generate_daily_video(path):
+    command = 'avconv -f image2 -framerate 10 -i %04d.jpg -codec copy {}.mkv'
+    cur_dir = os.path.abspath(os.curdir)
+    try:
+        os.chdir(path)
+        os.system(
+            command.format(os.path.basename(path))
+        )
+    except Exception as e:
+        print e
+    finally:
+        os.chdir(cur_dir)
+
+
+def format_to_file_name(id, ext='jpg', digits=4):
+    ext = ext if not ext.startswith('.') else ext[1:]
+    str_id = str(id)
+    n = digits - len(str_id)
+    str_id = '0' * n + str_id if n > 0 else str_id
+    return '.'.join([str_id, ext, ])
+
 
 class SensorAccess(tornado.web.RequestHandler):
     @tornado.web.asynchronous
@@ -45,35 +96,38 @@ class IndexHandler(tornado.web.RequestHandler):
 class CameraHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
-        self.write(self.__take_photo(self.__generate_path()))
+        self.write(self.take_photo(self.generate_path()))
         self.finish()
 
-    def __generate_path(self, daily=False):
-        photo_dir = os.path.join(
-            PHOTO_STORE,
-            time.strftime('%Y%m%d')
-        )
+    def generate_path(self, daily=False):
+        photo_dir = get_daily_shot_dir()
         if not daily:
             photo_dir = os.path.join(
                 photo_dir,
                 'random'
             )
-        not os.path.isdir(photo_dir) and os.makedirs(photo_dir, mode=777)
+        not os.path.isdir(photo_dir) and os.makedirs(photo_dir, mode=0777)
         dst_photo_path = os.path.join(
             photo_dir,
-            '{}.jpg'.format(str(int(time.time())))
+            format_to_file_name(get_last_daily_shot_id() + 1)
         )
         return dst_photo_path
 
-    def __take_photo(self, path):
+    def take_photo(self, path, daily=False):
         annotate_text = time.strftime(
-            '%Y/%m/%d %H:%M:%S offset +{:d}s\n{:.2f}deg / {:.3f}KPa'
+            '%Y/%m/%d %H:%M:%S offset +{:d}s  {:.2f}deg / {:.3f}KPa'
         )
         wait_offset = 1
+        now = time.time()
+        global LAST_DAILY_SHOT
+        if daily and now - LAST_DAILY_SHOT < 50:
+            print LAST_DAILY_SHOT, now, daily
+            return ''
         with picamera.PiCamera() as camera:
             sensor = BMP085.BMP085(mode=BMP085.BMP085_ULTRAHIGHRES)
 
-            camera.annotate_text_size = 64
+            camera.annotate_text_size = 50
+            # camera.annotate_background = picamera.Color(r=204, g=204, b=204)
             camera.framerate = Fraction(15, 1)
             camera.awb_mode = 'fluorescent'
             camera.iso = 600
@@ -94,6 +148,9 @@ class CameraHandler(tornado.web.RequestHandler):
             camera.annotate_text = annotate_text
             camera.capture(photo_path, resize=PHOTO_RESOLUTION)
         shutil.move(photo_path, path)
+        os.chmod(path, 0777)
+        if daily:
+            LAST_DAILY_SHOT = now
         return path
 
 
@@ -101,7 +158,10 @@ class DailyPhotoHandler(CameraHandler):
     @tornado.web.asynchronous
     def get(self):
         self.write(
-            self.__take_photo(self.__generate_path(daily=True))
+            self.take_photo(
+                self.generate_path(daily=True),
+                daily=True
+            )
         )
         self.finish()
 
