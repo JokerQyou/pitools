@@ -4,6 +4,7 @@ import json
 import tempfile
 import time
 from fractions import Fraction
+import random
 import shutil
 
 import tornado.ioloop
@@ -16,12 +17,18 @@ from config import PHOTO_STORE, PHOTO_RESOLUTION
 LAST_DAILY_SHOT = 0
 TODAY = '0'
 
+sensor = None
+camera = None
+
 
 def get_last_daily_shot_id():
     photo_dir = get_daily_shot_dir()
     p_id = -1
     for item in os.listdir(photo_dir):
-        _p_id = int(os.path.splitext(item)[0])
+        try:
+            _p_id = int(os.path.splitext(item)[0])
+        except Exception:
+            continue
         if _p_id > p_id:
             p_id = _p_id
     return p_id
@@ -77,7 +84,6 @@ class SensorAccess(tornado.web.RequestHandler):
 
 class TempSensorAccess(SensorAccess):
     def read_sensor(self):
-        sensor = BMP085.BMP085(mode=BMP085.BMP085_ULTRAHIGHRES)
         return {
             'temperature': sensor.read_temperature(),
             'pressure': sensor.read_pressure(),
@@ -107,10 +113,21 @@ class CameraHandler(tornado.web.RequestHandler):
                 'random'
             )
         not os.path.isdir(photo_dir) and os.makedirs(photo_dir, mode=0777)
-        dst_photo_path = os.path.join(
-            photo_dir,
-            format_to_file_name(get_last_daily_shot_id() + 1)
-        )
+        if daily:
+            dst_photo_path = os.path.join(
+                photo_dir,
+                format_to_file_name(get_last_daily_shot_id() + 1)
+            )
+        else:
+            dst_photo_path = os.path.join(
+                photo_dir,
+                format_to_file_name(
+                    '{:d}{:f}'.format(
+                        get_last_daily_shot_id() + 1,
+                        random.random()
+                    )
+                )
+            )
         return dst_photo_path
 
     def take_photo(self, path, daily=False):
@@ -123,30 +140,18 @@ class CameraHandler(tornado.web.RequestHandler):
         if daily and now - LAST_DAILY_SHOT < 50:
             print LAST_DAILY_SHOT, now, daily
             return ''
-        with picamera.PiCamera() as camera:
-            sensor = BMP085.BMP085(mode=BMP085.BMP085_ULTRAHIGHRES)
-
-            camera.annotate_text_size = 50
-            # camera.annotate_background = picamera.Color(r=204, g=204, b=204)
-            camera.framerate = Fraction(15, 1)
-            camera.awb_mode = 'fluorescent'
-            camera.iso = 600
-            photo_path = tempfile.mktemp(suffix='.jpg', prefix='pi')
-            photo_path = os.path.join(
-                '/dev/shm',
-                os.path.basename(photo_path)
-            )
-            # wait a moment for iso and white balance
-            time.sleep(wait_offset)
-            # and my camera is up side down, so rotate 180 deg
-            camera.rotation = 180
-            annotate_text = annotate_text.format(
-                wait_offset,
-                sensor.read_temperature(),
-                sensor.read_pressure() / 1000.0
-            )
-            camera.annotate_text = annotate_text
-            camera.capture(photo_path, resize=PHOTO_RESOLUTION)
+        photo_path = tempfile.mktemp(suffix='.jpg', prefix='pi')
+        photo_path = os.path.join(
+            '/dev/shm',
+            os.path.basename(photo_path)
+        )
+        annotate_text = annotate_text.format(
+            wait_offset,
+            sensor.read_temperature(),
+            sensor.read_pressure() / 1000.0
+        )
+        camera.annotate_text = annotate_text
+        camera.capture(photo_path, resize=PHOTO_RESOLUTION)
         shutil.move(photo_path, path)
         os.chmod(path, 0777)
         if daily:
@@ -167,14 +172,30 @@ class DailyPhotoHandler(CameraHandler):
 
 
 def start_server():
-    application = tornado.web.Application([
-        (r"/", IndexHandler),
-        (r"/sensors/env", TempSensorAccess),
-        (r'/photo/shot', CameraHandler),
-        (r'/photo/daily', DailyPhotoHandler),
-    ])
-    application.listen(9876)
-    tornado.ioloop.IOLoop.instance().start()
+    global sensor, camera
+    sensor = BMP085.BMP085(mode=BMP085.BMP085_ULTRAHIGHRES)
+    wait_offset = 1
+    with picamera.PiCamera() as camera:
+        sensor = BMP085.BMP085(mode=BMP085.BMP085_ULTRAHIGHRES)
+
+        camera.annotate_text_size = 50
+        # camera.annotate_background = picamera.Color(r=204, g=204, b=204)
+        camera.framerate = Fraction(15, 1)
+        camera.awb_mode = 'fluorescent'
+        camera.iso = 600
+        # wait a moment for iso and white balance
+        time.sleep(wait_offset)
+        # and my camera is up side down, so rotate 180 deg
+        camera.rotation = 180
+
+        application = tornado.web.Application([
+            (r"/", IndexHandler),
+            (r"/sensors/env", TempSensorAccess),
+            (r'/photo/shot', CameraHandler),
+            (r'/photo/daily', DailyPhotoHandler),
+        ])
+        application.listen(9876)
+        tornado.ioloop.IOLoop.instance().start()
 
 if __name__ == "__main__":
     start_server()
