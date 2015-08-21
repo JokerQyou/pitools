@@ -12,7 +12,7 @@ import tornado.web
 import Adafruit_BMP.BMP085 as BMP085
 import picamera
 
-from config import PHOTO_STORE, PHOTO_RESOLUTION
+from config import PHOTO_STORE, PHOTO_RESOLUTION, NORMAL_USER
 
 LAST_DAILY_SHOT = 0
 TODAY = '0'
@@ -112,7 +112,10 @@ class CameraHandler(tornado.web.RequestHandler):
                 photo_dir,
                 'random'
             )
-        not os.path.isdir(photo_dir) and os.makedirs(photo_dir, mode=0777)
+        if not os.path.isdir(photo_dir):
+            normal_user = shutil.getpwnam(NORMAL_USER)
+            os.makedirs(photo_dir, mode=0777)
+            os.chown(photo_dir, normal_user.pw_uid, normal_user.pw_gid)
         if daily:
             dst_photo_path = os.path.join(
                 photo_dir,
@@ -153,6 +156,8 @@ class CameraHandler(tornado.web.RequestHandler):
         camera.annotate_text = annotate_text
         camera.capture(photo_path, resize=PHOTO_RESOLUTION)
         shutil.move(photo_path, path)
+        normal_user = shutil.getpwnam(NORMAL_USER)
+        os.chown(path, normal_user.pw_uid, normal_user.pw_gid)
         os.chmod(path, 0777)
         if daily:
             LAST_DAILY_SHOT = now
