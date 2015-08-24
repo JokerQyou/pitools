@@ -178,7 +178,6 @@ class DailyPhotoHandler(CameraHandler):
 
 def start_server():
     global sensor, camera
-    sensor = BMP085.BMP085(mode=BMP085.BMP085_ULTRAHIGHRES)
     wait_offset = 1
     with picamera.PiCamera() as camera:
         sensor = BMP085.BMP085(mode=BMP085.BMP085_ULTRAHIGHRES)
