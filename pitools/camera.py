@@ -9,7 +9,7 @@ from flask import Blueprint, current_app, request, send_file
 from picamera import PiCamera
 
 blueprint = Blueprint('camera', __name__, url_prefix='/camera')
-DEFAULT_RESOLUTION = (900, 1200)
+DEFAULT_RESOLUTION = (600, 800)
 
 
 def setup_camera():
@@ -42,6 +42,7 @@ def shot():
     with BytesIO() as pdata:
         current_app.camera.annotation_text = annotation
         current_app.camera.capture(pdata, resize=resolution, format='jpg')
+        pdata.seek(0)
         return send_file(
             pdata,
             attachment_filename='.'.join([annotation, 'jpg']),
