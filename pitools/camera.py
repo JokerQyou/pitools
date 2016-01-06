@@ -41,7 +41,7 @@ def shot():
 
     with StringIO() as pdata:
         current_app.camera.annotation_text = annotation
-        current_app.camera.capture(pdata, resize=resolution)
+        current_app.camera.capture(pdata, resize=resolution, format='jpg')
         return send_file(
             pdata,
             attachment_filename='.'.join([annotation, 'jpg']),
