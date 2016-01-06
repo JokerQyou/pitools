@@ -8,7 +8,7 @@ from io import StringIO
 from flask import Blueprint, current_app, request, send_file
 from picamera import PiCamera
 
-blueprint = Blueprint('camera', url_prefix='/camera')
+blueprint = Blueprint('camera', __name__, url_prefix='/camera')
 DEFAULT_RESOLUTION = (900, 1200)
 
 
