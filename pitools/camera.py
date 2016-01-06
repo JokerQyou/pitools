@@ -9,7 +9,7 @@ from flask import Blueprint, current_app, request, send_file
 from picamera import PiCamera
 
 blueprint = Blueprint('camera', __name__, url_prefix='/camera')
-DEFAULT_RESOLUTION = (600, 800)
+DEFAULT_RESOLUTION = (800, 600)
 
 
 def setup_camera():
