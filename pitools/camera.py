@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 import json
 import time
-from io import StringIO
+from io import BytesIO
 
 from flask import Blueprint, current_app, request, send_file
 from picamera import PiCamera
@@ -39,7 +39,7 @@ def shot():
     except:
         resolution = DEFAULT_RESOLUTION
 
-    with StringIO() as pdata:
+    with BytesIO() as pdata:
         current_app.camera.annotation_text = annotation
         current_app.camera.capture(pdata, resize=resolution, format='jpg')
         return send_file(
