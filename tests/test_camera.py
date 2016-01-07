@@ -6,11 +6,10 @@ from __future__ import unicode_literals
 import io
 import imghdr
 import unittest
-import tempfile
-import shutil
 
 from flask import Flask
 from pitools import camera
+from picamera import PiCamera
 
 app = Flask(__name__)
 app.register_blueprint(camera.blueprint)
@@ -19,11 +18,18 @@ app.register_blueprint(camera.blueprint)
 class CameraTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.workspace = tempfile.mkdtemp()
         self.app = app.test_client()
 
     def tearDown(self):
-        shutil.rmtree(self.workspace)
+        pass
+
+    def test_setup_camera(self):
+        '''
+        setup_camera() shoud return an opened PiCamera instance
+        '''
+        with camera.setup_camera() as c:
+            assert isinstance(camera.setup_camera(), PiCamera)
+            assert not c.closed
 
     def test_post_shot_api(self):
         '''
