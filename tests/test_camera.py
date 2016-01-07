@@ -1,5 +1,7 @@
 # coding: utf-8
 from __future__ import unicode_literals
+import io
+import imghdr
 import unittest
 import tempfile
 import shutil
@@ -34,6 +36,13 @@ class CameraTestCase(unittest.TestCase):
         rv = self.app.get('/camera/shot')
         assert rv.content_type.startswith('image/')
         print dir(rv)
+        with io.BytesIO() as photo:
+            photo.write(rv.get_data())
+            photo.flush()
+            photo.seek(0)
+            assert len(photo.read()) > 0
+            photo.seek(0)
+            assert 'jpeg' == imghdr.what('', photo.read())
 
 if __name__ == '__main__':
     unittest.main()
