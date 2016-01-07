@@ -1,4 +1,7 @@
 # coding: utf-8
+'''
+Test pitools.camera module
+'''
 from __future__ import unicode_literals
 import io
 import imghdr
