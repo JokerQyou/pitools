@@ -23,7 +23,7 @@ class CameraTestCase(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_setup_camera(self):
+    def test_01_setup_camera(self):
         '''
         setup_camera() shoud return an opened PiCamera instance
         '''
@@ -31,14 +31,14 @@ class CameraTestCase(unittest.TestCase):
             assert isinstance(camera.setup_camera(), PiCamera)
             assert not c.closed
 
-    def test_post_shot_api(self):
+    def test_02_post_shot_api(self):
         '''
         Should fail with 405 with GET request
         '''
         rv = self.app.post('/camera/shot')
         assert 405 == rv.status_code
 
-    def test_get_shot_api(self):
+    def test_03_get_shot_api(self):
         '''
         Should return a image with MIME of image/*
         '''
