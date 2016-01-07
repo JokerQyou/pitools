@@ -22,14 +22,14 @@ class CameraTestCase(unittest.TestCase):
 
     def test_post_shot_api(self):
         '''
-        Should fail with 405 method not allowed
+        Should fail with 405 with GET request
         '''
         rv = self.app.post('/camera/shot')
         assert 405 == rv.status_code
 
     def test_get_shot_api(self):
         '''
-        Should return a image with image/* MIME
+        Should return a image with MIME of image/*
         '''
         rv = self.app.get('/camera/shot')
         assert rv.content_type.startswith('image/')
