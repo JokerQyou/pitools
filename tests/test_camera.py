@@ -28,7 +28,7 @@ class CameraTestCase(unittest.TestCase):
         setup_camera() shoud return an opened PiCamera instance
         '''
         with camera.setup_camera() as c:
-            assert isinstance(camera.setup_camera(), PiCamera)
+            assert isinstance(c, PiCamera)
             assert not c.closed
 
     def test_02_post_shot_api(self):
