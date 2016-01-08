@@ -22,6 +22,8 @@ def read_all():
     '''
     Read temperature and air pressure
     '''
+    if not isinstance(getattr(current_app, 'bmp085', None), BMP085.BMP085):
+        setattr(current_app, 'bmp085', setup_bmp085())
     return jsonify(
         temperature=current_app.bmp085.read_temperature(),
         pressure=current_app.bmp085.read_pressure(),
