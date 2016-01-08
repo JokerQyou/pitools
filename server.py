@@ -2,10 +2,11 @@
 from __future__ import unicode_literals
 
 from flask import Flask
-from pitools import camera
+import pitools
 
 app = Flask(__name__)
-app.register_blueprint(camera.blueprint)
+app.register_blueprint(pitools.camera.blueprint)
+app.register_blueprint(pitools.sensors.bmp085.blueprint, url_prefix='/sensors')
 
 
 def serve():
