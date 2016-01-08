@@ -53,4 +53,3 @@ def read_pressure():
         pressure=current_app.bmp085.read_pressure(),
         timestamp=time.time()
     )
-
