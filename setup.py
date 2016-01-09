@@ -20,7 +20,7 @@ setup(
     author_email='Joker.Qyou@gmail.com',
     description='A server running on rPi',
     long_description=open('README.md').read(),
-    packages=['pitools', ],
+    packages=['pitools', 'pitools.sensors', ],
     include_package_data=True,
     zip_safe=False,
     platforms='linux',
